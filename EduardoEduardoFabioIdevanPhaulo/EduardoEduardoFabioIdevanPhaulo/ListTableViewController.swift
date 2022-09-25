@@ -28,7 +28,6 @@ class ListTableViewController: UITableViewController {
 
     }
     private func loadToysList(){
-        print("entrei na loadToysList")
         firestoreListener = firestore
             .collection(collection)
             .order(by: "nome_do_brinquedo", descending: false)
@@ -46,7 +45,6 @@ class ListTableViewController: UITableViewController {
     
     private func showItemsFrom(snapshot: QuerySnapshot){
         toysList.removeAll()
-        print("entrei na funcao")
         for document in snapshot.documents{
             let id = document.documentID
             let data = document.data()
@@ -56,6 +54,38 @@ class ListTableViewController: UITableViewController {
             toysList.append(toysItem)
         }
         tableView.reloadData()
+    }
+    
+    private func showAlertForItem(_ item: ToysItem?){
+        let alert = UIAlertController(title: "Doaçao de brinquedo", message: "Entre com o nome do brinquedo e telefone", preferredStyle: .alert)
+        alert.addTextField { (textField ) in
+            textField.placeholder = "Nome do Brinquedo"
+            textField.text = item?.nome_do_brinquedo
+        }
+        alert.addTextField{ (textField) in
+            textField.placeholder = "Telefone"
+            textField.text = item?.telefone
+        }
+        
+        let okAction = UIAlertAction(title: "OK", style: .default){ (_) in
+            guard let nome_do_brinquedo = alert.textFields?.first?.text, let telefone = alert.textFields?.last?.text else {return}
+            let data: [String: Any] = [
+                "nome_do_brinquedo": nome_do_brinquedo,
+                "telefone": telefone
+            ]
+            
+            if let item = item {
+                self.firestore.collection(self.collection).document(item.id).updateData(data)
+            } else {
+                self.firestore.collection(self.collection).addDocument(data: data)
+            }
+        }
+        let cancelAction = UIAlertAction(title: "Cancelar", style: .cancel, handler: nil)
+        
+        alert.addAction(okAction)
+        alert.addAction(cancelAction)
+
+        present(alert, animated: true, completion: nil)
     }
     
     // MARK: - Table view data source
@@ -80,13 +110,20 @@ class ListTableViewController: UITableViewController {
         return cell
     }
     
-    override func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath) {
-        
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let toysItem = toysList[indexPath.row]
+        showAlertForItem(toysItem)
     }
     
-
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete{
+            let toysItem = toysList[indexPath.row]
+            firestore.collection(collection).document(toysItem.id).delete()
+        }
+    }
     
     @IBAction func addItem(_ sender: Any) {
+        showAlertForItem(nil)
     }
     
 }
